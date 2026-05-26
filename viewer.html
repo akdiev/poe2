@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>POE2 Skill Tree Viewer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101114;
+      --panel: #181a20;
+      --panel-2: #20232b;
+      --text: #f1eadc;
+      --muted: #aaa395;
+      --line: #3b362e;
+      --accent: #d4a545;
+      --accent-2: #80b8ff;
+      --danger: #db6b60;
+      --green: #8ccf7e;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, Segoe UI, system-ui, sans-serif;
+      letter-spacing: 0;
+    }
+
+    body {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+    }
+
+    aside {
+      display: flex;
+      min-width: 0;
+      min-height: 0;
+      flex-direction: column;
+      gap: 14px;
+      border-right: 1px solid #2a2d36;
+      background: var(--panel);
+      padding: 16px;
+      z-index: 2;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 720;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+    }
+
+    button,
+    input,
+    select {
+      min-height: 34px;
+      border: 1px solid #343844;
+      border-radius: 6px;
+      background: var(--panel-2);
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+    }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 0 10px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: #5b6272;
+      background: #282c36;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 0 10px;
+      outline: none;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .checks {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      border: 1px solid #343844;
+      border-radius: 6px;
+      background: var(--panel-2);
+      padding: 0 10px;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .check input {
+      width: 14px;
+      min-height: 14px;
+      padding: 0;
+      accent-color: var(--accent);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .stat {
+      border: 1px solid #30333d;
+      border-radius: 6px;
+      background: #14161b;
+      padding: 10px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 17px;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    #results {
+      min-height: 0;
+      overflow: auto;
+      border-top: 1px solid #2a2d36;
+      padding-top: 10px;
+    }
+
+    .result {
+      display: grid;
+      gap: 3px;
+      width: 100%;
+      min-height: 44px;
+      margin-bottom: 6px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: #14161b;
+      padding: 8px 10px;
+      text-align: left;
+    }
+
+    .result:hover,
+    .result.active {
+      border-color: #715b2b;
+      background: #201b12;
+    }
+
+    .result .name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 680;
+    }
+
+    .result .desc {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 11px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    main {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(202, 164, 84, 0.08), transparent 32%),
+        #0c0d10;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    canvas.dragging {
+      cursor: grabbing;
+    }
+
+    #details {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      width: min(420px, calc(100% - 32px));
+      max-height: min(320px, calc(100% - 32px));
+      overflow: auto;
+      border: 1px solid #343844;
+      border-radius: 8px;
+      background: rgba(18, 20, 25, 0.94);
+      padding: 14px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    #details h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    #details ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      color: #e3d8c3;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .tag {
+      border: 1px solid #3c4250;
+      border-radius: 999px;
+      padding: 3px 8px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    #loading {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: #101114;
+      color: var(--muted);
+      z-index: 5;
+    }
+
+    @media (max-width: 760px) {
+      body {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+      }
+
+      aside {
+        max-height: 42vh;
+        border-right: 0;
+        border-bottom: 1px solid #2a2d36;
+      }
+
+      #details {
+        right: 10px;
+        bottom: 10px;
+        width: calc(100% - 20px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <aside>
+    <div>
+      <h1>POE2 Skill Tree</h1>
+      <div class="sub" id="summary">Loading data.json...</div>
+    </div>
+
+    <label>
+      Search nodes
+      <input id="search" type="search" placeholder="Name or stat text">
+    </label>
+
+    <label>
+      Jump to class start
+      <select id="classSelect">
+        <option value="">All classes</option>
+      </select>
+    </label>
+
+    <div class="checks">
+      <label class="check"><input id="notablesOnly" type="checkbox">Notables</label>
+      <label class="check"><input id="keystonesOnly" type="checkbox">Keystones</label>
+    </div>
+
+    <div class="row">
+      <button id="fitBtn" title="Fit all nodes">Fit</button>
+      <button id="zoomInBtn" title="Zoom in">+</button>
+      <button id="zoomOutBtn" title="Zoom out">-</button>
+      <button id="resetBtn" title="Reset filters">Reset</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><strong id="nodeCount">0</strong><span>nodes</span></div>
+      <div class="stat"><strong id="edgeCount">0</strong><span>edges</span></div>
+      <div class="stat"><strong id="visibleCount">0</strong><span>visible</span></div>
+      <div class="stat"><strong id="zoomLevel">100%</strong><span>zoom</span></div>
+    </div>
+
+    <div id="results"></div>
+  </aside>
+
+  <main>
+    <canvas id="treeCanvas"></canvas>
+    <div id="details">
+      <h2>Select a node</h2>
+      <div class="sub">Click a node on the canvas or choose one from search results.</div>
+    </div>
+    <div id="loading">Loading skill tree...</div>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("treeCanvas");
+    const ctx = canvas.getContext("2d", { alpha: false });
+    const searchInput = document.getElementById("search");
+    const classSelect = document.getElementById("classSelect");
+    const notablesOnly = document.getElementById("notablesOnly");
+    const keystonesOnly = document.getElementById("keystonesOnly");
+    const results = document.getElementById("results");
+    const details = document.getElementById("details");
+    const loading = document.getElementById("loading");
+
+    let data;
+    let nodes = [];
+    let edges = [];
+    let bounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+    let view = { x: 0, y: 0, scale: 0.08 };
+    let selected = null;
+    let hovered = null;
+    let filteredNodes = [];
+    let dragging = false;
+    let lastPointer = { x: 0, y: 0 };
+    let pointerStart = { x: 0, y: 0 };
+    let dirty = true;
+
+    const colors = {
+      edge: "#363229",
+      edgeActive: "#8c6d2e",
+      small: "#7e796c",
+      notable: "#d4a545",
+      keystone: "#d96b5f",
+      classStart: "#83c7ff",
+      selected: "#ffffff",
+      search: "#8ccf7e",
+      text: "#f1eadc"
+    };
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      dirty = true;
+    }
+
+    function worldToScreen(x, y) {
+      return { x: x * view.scale + view.x, y: y * view.scale + view.y };
+    }
+
+    function screenToWorld(x, y) {
+      return { x: (x - view.x) / view.scale, y: (y - view.y) / view.scale };
+    }
+
+    function fitTo(nodesToFit = nodes) {
+      if (!nodesToFit.length) return;
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      for (const node of nodesToFit) {
+        minX = Math.min(minX, node.x);
+        minY = Math.min(minY, node.y);
+        maxX = Math.max(maxX, node.x);
+        maxY = Math.max(maxY, node.y);
+      }
+      const rect = canvas.getBoundingClientRect();
+      const padding = 60;
+      const width = Math.max(1, maxX - minX);
+      const height = Math.max(1, maxY - minY);
+      view.scale = Math.min((rect.width - padding * 2) / width, (rect.height - padding * 2) / height);
+      view.scale = clamp(view.scale, 0.025, 1.8);
+      view.x = rect.width / 2 - ((minX + maxX) / 2) * view.scale;
+      view.y = rect.height / 2 - ((minY + maxY) / 2) * view.scale;
+      dirty = true;
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function nodeKind(node) {
+      if (node.isKeystone || node.isMultipleChoiceOption || node.isMultipleChoice) return "keystone";
+      if (node.isNotable) return "notable";
+      if (node.isRoot || node.isAscendancyStart) return "classStart";
+      return "small";
+    }
+
+    function nodeRadius(node) {
+      const kind = nodeKind(node);
+      if (kind === "keystone") return 13;
+      if (kind === "notable") return 9;
+      if (kind === "classStart") return 11;
+      return 4.5;
+    }
+
+    function matchesFilters(node) {
+      const query = searchInput.value.trim().toLowerCase();
+      if (notablesOnly.checked && !node.isNotable) return false;
+      if (keystonesOnly.checked && !node.isKeystone) return false;
+      if (!query) return true;
+      const statText = (node.stats || []).join(" ").toLowerCase();
+      return String(node.name || "").toLowerCase().includes(query) || statText.includes(query) || String(node.skill || "").includes(query);
+    }
+
+    function applyFilters() {
+      filteredNodes = nodes.filter(matchesFilters);
+      document.getElementById("visibleCount").textContent = filteredNodes.length.toLocaleString();
+      renderResults();
+      dirty = true;
+    }
+
+    function renderResults() {
+      const query = searchInput.value.trim();
+      const list = (query || notablesOnly.checked || keystonesOnly.checked)
+        ? filteredNodes.slice(0, 80)
+        : nodes.filter(n => n.isNotable || n.isKeystone).slice(0, 80);
+      results.innerHTML = "";
+      for (const node of list) {
+        const button = document.createElement("button");
+        button.className = "result" + (selected === node ? " active" : "");
+        button.innerHTML = `<span class="name">${escapeHtml(node.name || "Unnamed")}</span><span class="desc">${escapeHtml((node.stats || []).join(" | ") || nodeKind(node))}</span>`;
+        button.addEventListener("click", () => selectNode(node, true));
+        results.appendChild(button);
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#039;"
+      }[char]));
+    }
+
+    function selectNode(node, center) {
+      selected = node;
+      if (center) {
+        const rect = canvas.getBoundingClientRect();
+        view.x = rect.width / 2 - node.x * view.scale;
+        view.y = rect.height / 2 - node.y * view.scale;
+      }
+      details.innerHTML = `
+        <h2>${escapeHtml(node.name || "Unnamed")}</h2>
+        <div class="sub">Skill ${escapeHtml(node.skill || node.id)} | Group ${escapeHtml(node.group || "-")}</div>
+        <div class="tags">
+          <span class="tag">${escapeHtml(nodeKind(node))}</span>
+          ${node.icon ? `<span class="tag">${escapeHtml(node.icon.split("/").pop())}</span>` : ""}
+        </div>
+        ${(node.stats || []).length ? `<ul>${node.stats.map(stat => `<li>${escapeHtml(stat)}</li>`).join("")}</ul>` : "<div class=\"sub\">No stats listed.</div>"}
+      `;
+      renderResults();
+      dirty = true;
+    }
+
+    function draw() {
+      if (!dirty) return;
+      dirty = false;
+
+      const rect = canvas.getBoundingClientRect();
+      ctx.save();
+      ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
+      ctx.fillStyle = "#0c0d10";
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(view.x, view.y);
+      ctx.scale(view.scale, view.scale);
+
+      const visibleSet = new Set(filteredNodes.map(n => n._key));
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      for (const edge of edges) {
+        const a = edge.a;
+        const b = edge.b;
+        if (!a || !b) continue;
+        const active = selected && (a === selected || b === selected);
+        const dimmed = filteredNodes.length !== nodes.length && (!visibleSet.has(a._key) || !visibleSet.has(b._key));
+        ctx.strokeStyle = active ? colors.edgeActive : colors.edge;
+        ctx.globalAlpha = active ? 0.95 : (dimmed ? 0.12 : 0.46);
+        ctx.lineWidth = active ? 7 / view.scale : 3 / view.scale;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      const rectWorld = {
+        minX: -view.x / view.scale - 80 / view.scale,
+        minY: -view.y / view.scale - 80 / view.scale,
+        maxX: (rect.width - view.x) / view.scale + 80 / view.scale,
+        maxY: (rect.height - view.y) / view.scale + 80 / view.scale
+      };
+
+      for (const node of nodes) {
+        if (node.x < rectWorld.minX || node.x > rectWorld.maxX || node.y < rectWorld.minY || node.y > rectWorld.maxY) continue;
+        const kind = nodeKind(node);
+        const inFilter = visibleSet.has(node._key);
+        const isSelected = selected === node;
+        const isHovered = hovered === node;
+        const r = nodeRadius(node);
+
+        ctx.globalAlpha = inFilter ? 1 : 0.18;
+        ctx.fillStyle = colors[kind];
+        ctx.strokeStyle = isSelected ? colors.selected : (isHovered ? colors.search : "#151515");
+        ctx.lineWidth = (isSelected || isHovered ? 4 : 2) / view.scale;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, r / view.scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        if ((isSelected || isHovered || (view.scale > 0.16 && (node.isNotable || node.isKeystone))) && node.name) {
+          ctx.globalAlpha = 1;
+          ctx.font = `${12 / view.scale}px Segoe UI, sans-serif`;
+          ctx.fillStyle = colors.text;
+          ctx.strokeStyle = "#0c0d10";
+          ctx.lineWidth = 4 / view.scale;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          ctx.strokeText(node.name, node.x, node.y + (r + 7) / view.scale);
+          ctx.fillText(node.name, node.x, node.y + (r + 7) / view.scale);
+        }
+      }
+      ctx.globalAlpha = 1;
+      ctx.restore();
+
+      document.getElementById("zoomLevel").textContent = `${Math.round(view.scale * 100)}%`;
+    }
+
+    function findNodeAt(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const point = screenToWorld(clientX - rect.left, clientY - rect.top);
+      let best = null;
+      let bestDistance = Infinity;
+      for (const node of nodes) {
+        const dx = node.x - point.x;
+        const dy = node.y - point.y;
+        const distance = Math.hypot(dx, dy);
+        const hit = Math.max(80, nodeRadius(node) / view.scale + 8 / view.scale);
+        if (distance < hit && distance < bestDistance) {
+          best = node;
+          bestDistance = distance;
+        }
+      }
+      return best;
+    }
+
+    function zoomAt(clientX, clientY, factor) {
+      const rect = canvas.getBoundingClientRect();
+      const sx = clientX - rect.left;
+      const sy = clientY - rect.top;
+      const before = screenToWorld(sx, sy);
+      view.scale = clamp(view.scale * factor, 0.025, 1.8);
+      view.x = sx - before.x * view.scale;
+      view.y = sy - before.y * view.scale;
+      dirty = true;
+    }
+
+    canvas.addEventListener("pointerdown", event => {
+      dragging = true;
+      lastPointer = { x: event.clientX, y: event.clientY };
+      pointerStart = { x: event.clientX, y: event.clientY };
+      canvas.classList.add("dragging");
+      canvas.setPointerCapture(event.pointerId);
+    });
+
+    canvas.addEventListener("pointermove", event => {
+      if (dragging) {
+        view.x += event.clientX - lastPointer.x;
+        view.y += event.clientY - lastPointer.y;
+        lastPointer = { x: event.clientX, y: event.clientY };
+        dirty = true;
+        return;
+      }
+      const nextHover = findNodeAt(event.clientX, event.clientY);
+      if (nextHover !== hovered) {
+        hovered = nextHover;
+        dirty = true;
+      }
+    });
+
+    canvas.addEventListener("pointerup", event => {
+      canvas.classList.remove("dragging");
+      const moved = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y);
+      dragging = false;
+      if (moved < 4) {
+        const hit = findNodeAt(event.clientX, event.clientY);
+        if (hit) selectNode(hit, false);
+      }
+    });
+
+    canvas.addEventListener("wheel", event => {
+      event.preventDefault();
+      zoomAt(event.clientX, event.clientY, event.deltaY < 0 ? 1.15 : 0.87);
+    }, { passive: false });
+
+    searchInput.addEventListener("input", applyFilters);
+    notablesOnly.addEventListener("change", applyFilters);
+    keystonesOnly.addEventListener("change", applyFilters);
+    classSelect.addEventListener("change", () => {
+      const value = classSelect.value;
+      if (!value) return;
+      const direct = nodes.find(node => String(node.name || "").toLowerCase() === value.toLowerCase());
+      const fallback = nodes.find(node => String(node.name || "").toLowerCase().includes(value.toLowerCase()));
+      const target = direct || fallback;
+      if (target) selectNode(target, true);
+      dirty = true;
+    });
+    document.getElementById("fitBtn").addEventListener("click", () => fitTo(filteredNodes.length ? filteredNodes : nodes));
+    document.getElementById("zoomInBtn").addEventListener("click", () => zoomAt(canvas.getBoundingClientRect().left + canvas.clientWidth / 2, canvas.getBoundingClientRect().top + canvas.clientHeight / 2, 1.22));
+    document.getElementById("zoomOutBtn").addEventListener("click", () => zoomAt(canvas.getBoundingClientRect().left + canvas.clientWidth / 2, canvas.getBoundingClientRect().top + canvas.clientHeight / 2, 0.82));
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      searchInput.value = "";
+      notablesOnly.checked = false;
+      keystonesOnly.checked = false;
+      classSelect.value = "";
+      applyFilters();
+      fitTo(nodes);
+    });
+
+    window.addEventListener("resize", () => {
+      resizeCanvas();
+      fitTo(filteredNodes.length ? filteredNodes : nodes);
+    });
+
+    async function init() {
+      try {
+        const response = await fetch("data.json");
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        data = await response.json();
+      } catch (error) {
+        loading.textContent = "Could not load data.json. Open this through a local server, not directly as a file.";
+        throw error;
+      }
+
+      const nodeMap = new Map();
+      nodes = Object.entries(data.nodes || {}).map(([key, node]) => {
+        const normalized = {
+          ...node,
+          _key: String(key),
+          x: Number(node.x || 0),
+          y: Number(node.y || 0)
+        };
+        nodeMap.set(String(key), normalized);
+        if (node.skill !== undefined) nodeMap.set(String(node.skill), normalized);
+        return normalized;
+      });
+
+      edges = (data.edges || []).map(edge => {
+        if (Array.isArray(edge)) return { a: nodeMap.get(String(edge[0])), b: nodeMap.get(String(edge[1])) };
+        return {
+          a: nodeMap.get(String(edge.in || edge.from || edge.a || edge[0])),
+          b: nodeMap.get(String(edge.out || edge.to || edge.b || edge[1]))
+        };
+      }).filter(edge => edge.a && edge.b);
+
+      if (!edges.length) {
+        const seen = new Set();
+        for (const node of nodes) {
+          for (const target of node.out || []) {
+            const other = nodeMap.get(String(target));
+            if (!other) continue;
+            const id = [node._key, other._key].sort().join(":");
+            if (!seen.has(id)) {
+              seen.add(id);
+              edges.push({ a: node, b: other });
+            }
+          }
+        }
+      }
+
+      bounds = {
+        minX: Math.min(...nodes.map(n => n.x)),
+        minY: Math.min(...nodes.map(n => n.y)),
+        maxX: Math.max(...nodes.map(n => n.x)),
+        maxY: Math.max(...nodes.map(n => n.y))
+      };
+
+      for (const cls of data.classes || []) {
+        const option = document.createElement("option");
+        option.value = cls.name.toUpperCase();
+        option.textContent = cls.name;
+        classSelect.appendChild(option);
+      }
+
+      document.getElementById("summary").textContent = `${data.tree || "Default"} tree export`;
+      document.getElementById("nodeCount").textContent = nodes.length.toLocaleString();
+      document.getElementById("edgeCount").textContent = edges.length.toLocaleString();
+
+      resizeCanvas();
+      filteredNodes = nodes.slice();
+      applyFilters();
+      fitTo(nodes);
+      loading.remove();
+      requestAnimationFrame(loop);
+    }
+
+    function loop() {
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    init();
+  </script>
+</body>
+</html>
